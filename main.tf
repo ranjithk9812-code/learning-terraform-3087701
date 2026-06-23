@@ -1,3 +1,16 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-west-2"
+}
+
 data "aws_ami" "app_ami" {
   most_recent = true
   owners      = ["amazon"]
@@ -25,9 +38,21 @@ data "aws_ami" "app_ami" {
 
 resource "aws_instance" "web" {
   ami           = data.aws_ami.app_ami.id
-  instance_type = "t3.nano"
+  instance_type = "t2.micro"
 
   tags = {
     Name = "HelloWorld"
   }
+}
+
+output "instance_id" {
+  value = aws_instance.web.id
+}
+
+output "public_ip" {
+  value = aws_instance.web.public_ip
+}
+
+output "ami_id" {
+  value = data.aws_ami.app_ami.id
 }
