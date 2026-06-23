@@ -1,16 +1,3 @@
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 6.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = "us-west-2"
-}
-
 data "aws_ami" "app_ami" {
   most_recent = true
   owners      = ["amazon"]
@@ -43,16 +30,4 @@ resource "aws_instance" "web" {
   tags = {
     Name = "HelloWorld"
   }
-}
-
-output "instance_id" {
-  value = aws_instance.web.id
-}
-
-output "public_ip" {
-  value = aws_instance.web.public_ip
-}
-
-output "ami_id" {
-  value = data.aws_ami.app_ami.id
 }
