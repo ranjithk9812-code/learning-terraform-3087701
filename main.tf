@@ -35,11 +35,31 @@ module "web_sg" {
   description = "Allow HTTP and HTTPS inbound and all outbound"
   vpc_id      = data.aws_vpc.default.id
 
-  ingress_rules       = ["http-80-tcp", "https-443-tcp"]
-  ingress_cidr_blocks = ["0.0.0.0/0"]
+  ingress_rules = {
+    http = {
+      from_port   = 80
+      to_port     = 80
+      ip_protocol = "tcp"
+      cidr_ipv4   = "0.0.0.0/0"
+      description = "Allow HTTP"
+    }
 
-  egress_rules       = ["all-all"]
-  egress_cidr_blocks = ["0.0.0.0/0"]
+    https = {
+      from_port   = 443
+      to_port     = 443
+      ip_protocol = "tcp"
+      cidr_ipv4   = "0.0.0.0/0"
+      description = "Allow HTTPS"
+    }
+  }
+
+  egress_rules = {
+    all = {
+      ip_protocol = "-1"
+      cidr_ipv4   = "0.0.0.0/0"
+      description = "Allow all outbound"
+    }
+  }
 
   tags = {
     Name = "web-new-sg"
@@ -49,7 +69,7 @@ module "web_sg" {
 resource "aws_instance" "web" {
   ami                    = data.aws_ami.app_ami.id
   instance_type          = var.instance_type
-  vpc_security_group_ids = [module.web_sg.security_group_id]
+  vpc_security_group_ids = [module.web_sg.id]
 
   tags = {
     Name = "HelloWorld"
