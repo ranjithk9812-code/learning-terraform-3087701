@@ -44,7 +44,7 @@ data "aws_ami" "app_ami" {
 resource "aws_instance" "web" {
   ami                         = data.aws_ami.app_ami.id
   instance_type               = var.instance_type
-  subnet_id                   = module.vpc.public_subnets[0]
+  subnet_id                   = module.web_vpc.public_subnets[0]
   associate_public_ip_address = true
 
   tags = {
