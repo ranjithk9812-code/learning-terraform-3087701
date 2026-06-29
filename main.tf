@@ -45,15 +45,15 @@ module "web_vpc" {
 
 resource "aws_security_group" "web_instance_sg" {
   name        = "web-instance-sg"
-  description = "Allow HTTP traffic to EC2"
+  description = "Allow HTTP from ALB"
   vpc_id      = module.web_vpc.vpc_id
 
   ingress {
-    description = "Allow HTTP from ALB/internet"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    description     = "Allow HTTP from ALB"
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [module.alb.security_group_id]
   }
 
   egress {
@@ -75,6 +75,8 @@ resource "aws_instance" "web" {
   subnet_id                   = module.web_vpc.public_subnets[0]
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.web_instance_sg.id]
+
+  user_data_replace_on_change = true
 
   user_data = <<-EOF
 #!/bin/bash
