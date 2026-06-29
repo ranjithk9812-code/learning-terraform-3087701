@@ -22,7 +22,8 @@ data "aws_ami" "app_ami" {
     values = ["hvm"]
   }
 }
- module "web_vpc" {
+
+module "web_vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "~> 6.0"
 
@@ -41,13 +42,95 @@ data "aws_ami" "app_ami" {
     Environment = "dev"
   }
 }
+
+resource "aws_security_group" "web_instance_sg" {
+  name        = "web-instance-sg"
+}
+
 resource "aws_instance" "web" {
   ami                         = data.aws_ami.app_ami.id
   instance_type               = var.instance_type
   subnet_id                   = module.web_vpc.public_subnets[0]
   associate_public_ip_address = true
+  vpc_security_group_ids      = [aws_security_group.web_instance_sg.id]
+
+  user_data = <<-EOF
+#!/bin/bash
+dnf update -y
+dnf install -y httpd
+systemctl start httpd
+systemctl enable httpd
+echo "Hello from Terraform EC2 behind ALB" > /var/www/html/index.html
+EOF
 
   tags = {
     Name = "HelloWorld"
+  }
+}
+
+module "alb" {
+  source  = "terraform-aws-modules/alb/aws"
+  version = "~> 9.0"
+
+  name               = "my-alb"
+  load_balancer_type = "application"
+
+  vpc_id  = module.web_vpc.vpc_id
+  subnets = module.web_vpc.public_subnets
+
+  security_group_ingress_rules = {
+    all_http = {
+      from_port   = 80
+      to_port     = 80
+      ip_protocol = "tcp"
+      description = "Allow HTTP web traffic"
+      cidr_ipv4   = "0.0.0.0/0"
+    }
+  }
+
+  security_group_egress_rules = {
+    all = {
+      ip_protocol = "-1"
+      cidr_ipv4   = "0.0.0.0/0"
+    }
+  }
+
+  listeners = {
+   web-http = {
+      port     = 80
+      protocol = "HTTP"
+
+      forward = {
+        target_group_arn = "aws_lb_target_group_web.arn"
+      }
+    }
+  }
+
+  target_groups = {
+    web-instance = {
+      name_prefix = "web"
+      protocol    = "HTTP"
+      port        = 80
+      target_type = "instance"
+      target_id   = aws_instance.web.id
+    }
+  }
+
+  resource "aws_lb_target_group" "web" {
+  name     = "web"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = module_web_vpc.vpc_id
+}
+
+resource "aws_lb_target_group_attachment" "web" {
+  target_group_arn = aws_lb_target_group.web.arn
+  target_id        = aws_instance.web.id
+  port             = 80
+}
+
+  tags = {
+    Environment = "dev"
+    Project     = "Terraform-Learning"
   }
 }
