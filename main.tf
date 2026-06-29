@@ -44,16 +44,16 @@ module "web_vpc" {
 }
 
 resource "aws_security_group" "web_instance_sg" {
-  name        = "web-instance-sg"
-  description = "Allow HTTP from ALB"
+  name_prefix = "web-instance-sg-"
+  description = "Allow HTTP traffic to EC2"
   vpc_id      = module.web_vpc.vpc_id
 
   ingress {
-    description     = "Allow HTTP from ALB"
-    from_port       = 80
-    to_port         = 80
-    protocol        = "tcp"
-    security_groups = [module.alb.security_group_id]
+    description = "Allow HTTP"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
