@@ -43,55 +43,6 @@ module "web_vpc" {
   }
 }
 
-resource "aws_security_group" "web_instance_sg" {
-  name_prefix = "web-instance-sg-"
-  description = "Allow HTTP traffic to EC2"
-  vpc_id      = module.web_vpc.vpc_id
-
-  ingress {
-    description = "Allow HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    description = "Allow all outbound traffic"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "web-instance-sg"
-  }
-}
-
-resource "aws_instance" "web" {
-  ami                         = data.aws_ami.app_ami.id
-  instance_type               = var.instance_type
-  subnet_id                   = module.web_vpc.public_subnets[0]
-  associate_public_ip_address = true
-  vpc_security_group_ids      = [aws_security_group.web_instance_sg.id]
-
-  user_data_replace_on_change = true
-
-  user_data = <<-EOF
-#!/bin/bash
-dnf update -y
-dnf install -y httpd
-systemctl start httpd
-systemctl enable httpd
-echo "Hello from Terraform EC2 behind ALB" > /var/www/html/index.html
-EOF
-
-  tags = {
-    Name = "HelloWorld"
-  }
-}
-
 module "alb" {
   source  = "terraform-aws-modules/alb/aws"
   version = "~> 9.0"
@@ -132,11 +83,94 @@ module "alb" {
 
   target_groups = {
     web-instance = {
-      name_prefix = "web"
-      protocol    = "HTTP"
-      port        = 80
-      target_type = "instance"
-      target_id   = aws_instance.web.id
+      name_prefix       = "web"
+      protocol          = "HTTP"
+      port              = 80
+      target_type       = "instance"
+      create_attachment = false
+
+      health_check = {
+        enabled             = true
+        path                = "/"
+        port                = "traffic-port"
+        healthy_threshold   = 2
+        unhealthy_threshold = 2
+        timeout             = 5
+        interval            = 30
+        matcher             = "200"
+      }
+    }
+  }
+
+  tags = {
+    Environment = "dev"
+    Project     = "Terraform-Learning"
+  }
+}
+
+resource "aws_security_group" "web_instance_sg" {
+  name_prefix = "web-instance-sg-"
+  description = "Allow HTTP traffic from ALB to EC2"
+  vpc_id      = module.web_vpc.vpc_id
+
+  ingress {
+    description     = "Allow HTTP from ALB"
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [module.alb.security_group_id]
+  }
+
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "web-instance-sg"
+  }
+}
+
+module "autoscaling" {
+  source  = "terraform-aws-modules/autoscaling/aws"
+  version = "9.2.1"
+
+  name = "web-asg"
+
+  min_size         = 1
+  max_size         = 2
+  desired_capacity = 1
+
+  vpc_zone_identifier = module.web_vpc.public_subnets
+
+  health_check_type         = "ELB"
+  health_check_grace_period = 300
+
+  launch_template_name        = "web-asg-template"
+  launch_template_description = "Launch template for web ASG"
+  update_default_version      = true
+
+  image_id        = data.aws_ami.app_ami.id
+  instance_type   = var.instance_type
+  security_groups = [aws_security_group.web_instance_sg.id]
+
+  user_data = base64encode(<<-EOF
+#!/bin/bash
+dnf update -y
+dnf install -y httpd
+systemctl start httpd
+systemctl enable httpd
+echo "Hello from Terraform Auto Scaling behind ALB" > /var/www/html/index.html
+EOF
+  )
+
+  traffic_source_attachments = {
+    web_alb = {
+      traffic_source_identifier = module.alb.target_groups["web-instance"].arn
+      traffic_source_type       = "elbv2"
     }
   }
 
