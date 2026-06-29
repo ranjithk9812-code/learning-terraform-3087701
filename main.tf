@@ -45,6 +45,28 @@ module "web_vpc" {
 
 resource "aws_security_group" "web_instance_sg" {
   name        = "web-instance-sg"
+  description = "Allow HTTP traffic to EC2"
+  vpc_id      = module.web_vpc.vpc_id
+
+  ingress {
+    description = "Allow HTTP from ALB/internet"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "web-instance-sg"
+  }
 }
 
 resource "aws_instance" "web" {
@@ -96,12 +118,12 @@ module "alb" {
   }
 
   listeners = {
-   web-http = {
+    http = {
       port     = 80
       protocol = "HTTP"
 
       forward = {
-        target_group_arn = "aws_lb_target_group_web.arn"
+        target_group_key = "web-instance"
       }
     }
   }
@@ -115,19 +137,6 @@ module "alb" {
       target_id   = aws_instance.web.id
     }
   }
-
-  resource "aws_lb_target_group" "web" {
-  name     = "web"
-  port     = 80
-  protocol = "HTTP"
-  vpc_id   = module_web_vpc.vpc_id
-}
-
-resource "aws_lb_target_group_attachment" "web" {
-  target_group_arn = aws_lb_target_group.web.arn
-  target_id        = aws_instance.web.id
-  port             = 80
-}
 
   tags = {
     Environment = "dev"
