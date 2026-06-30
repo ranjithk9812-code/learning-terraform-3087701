@@ -1,6 +1,6 @@
 moved {
-    from = module.web_vpc
-    to   = module.dev.module.web_vpc
+  from = module.web_vpc
+  to   = module.dev.module.web_vpc
 }
 
 moved {
@@ -14,13 +14,13 @@ moved {
 }
 
 moved {
-    from = module.web_alb
-    to   = module.dev.module.web_alb
+  from = module.alb
+  to   = module.dev.module.alb
 }
 
 moved {
-    from = module.web_autoscaling
-    to   = module.dev.module.web_autoscaling
+  from = module.autoscaling
+  to   = module.dev.module.autoscaling
 }
 
   
