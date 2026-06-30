@@ -27,7 +27,7 @@ module "web_vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "~> 6.0"
 
-  name = ${var.environment.name}-web_vpc
+ name = "${var.environment.name}-web-vpc"
   cidr = "${var.environment.network_prefix}.0.0/16"
 
   azs = ["us-west-2a", "us-west-2b", "us-west-2c"]
@@ -179,12 +179,12 @@ echo "Hello from Terraform Auto Scaling behind ALB" > /var/www/html/index.html
 EOF
   )
 
-  traffic_source_attachments = {
-    ${var.environment.name}-web_alb = {
-      traffic_source_identifier = module.alb.target_groups["web-instance"].arn
-      traffic_source_type       = "elbv2"
-    }
+traffic_source_attachments = {
+  web_alb = {
+    traffic_source_identifier = module.alb.target_groups["web-instance"].arn
+    traffic_source_type       = "elbv2"
   }
+}
 
   tags = {
     Environment = var.environment.name
