@@ -9,8 +9,8 @@ moved {
 }
 
 moved {
-    from = aws_security_group_web"
-    to   = module.dev.aws_security_group.web
+  from = aws_security_group.web_instance_sg
+  to   = module.dev.aws_security_group.web_instance_sg
 }
 
 moved {
