@@ -27,7 +27,7 @@ module "web_vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "~> 6.0"
 
-  name = var.environment.name
+  name = ${var.environment.name}-web_vpc
   cidr = "${var.environment.network_prefix}.0.0/16"
 
   azs = ["us-west-2a", "us-west-2b", "us-west-2c"]
@@ -59,7 +59,7 @@ module "alb" {
   source  = "terraform-aws-modules/alb/aws"
   version = "~> 9.0"
 
-  name               = "my-alb"
+  name               = "${var.environment.name}-web-alb"
   load_balancer_type = "application"
 
   vpc_id  = module.web_vpc.vpc_id
@@ -142,7 +142,7 @@ resource "aws_security_group" "web_instance_sg" {
   }
 
   tags = {
-    Name = "web-instance-sg"
+    Name = "${var.environment.name}-web-instance-sg"
   }
 }
 
@@ -150,7 +150,7 @@ module "autoscaling" {
   source  = "terraform-aws-modules/autoscaling/aws"
   version = "9.2.1"
 
-  name = "web-asg"
+  name = "${var.environment.name}-web-asg"
 
   min_size         = var.min_size
   max_size         = var.max_size
@@ -180,7 +180,7 @@ EOF
   )
 
   traffic_source_attachments = {
-    web_alb = {
+    ${var.environment.name}-web_alb = {
       traffic_source_identifier = module.alb.target_groups["web-instance"].arn
       traffic_source_type       = "elbv2"
     }
